@@ -1169,4 +1169,879 @@ function renderPart(part, partIdx) {
 const rowIndices = Array.from({ length: part.rowCounts.length }, (_, i) => i).reverse(); // من الأسفل للأعلى
 return (
 <div className="flex-1 min-w-0">
-<div className="text-xs font-semibold mb-2 text-c
+<div className="text-xs font-semibold mb-2 text-center" style={{ color: C.navy }}>
+{part.name} <span className="font-normal text-gray-400">({part.rowCounts.reduce((a, b) => a + b, 0)})</span>
+</div>
+<div className="flex flex-col gap-1.5">
+{rowIndices.map((rowIdx) => {
+const count = part.rowCounts[rowIdx];
+const isOffset = part.pattern === "hex" && (part.startOffset ? rowIdx % 2 === 0 : rowIdx % 2 === 1);
+return (
+<div key={rowIdx} className="flex items-center gap-1" style={{ marginRight: isOffset ? 7 : 0 }}>
+<span className="text-[8px] text-gray-300 w-3 shrink-0">{rowIdx + 1}</span>
+{Array.from({ length: count }).map((_, posIdx) => {
+const plant = findPlantAt(blockIdx, partIdx, rowIdx, posIdx);
+const dotColor = plant ? HEALTH_STYLES[plant.health || "healthy"].dot : "transparent";
+return (
+<button
+key={posIdx}
+onClick={() => openSlot(partIdx, rowIdx, posIdx)}
+className="rounded-full shrink-0"
+style={{ width: 13, height: 13, backgroundColor: dotColor, border: plant ? "none" : "1.5px solid #d8cead" }}
+/>
+);
+})}
+</div>
+);
+})}
+</div>
+</div>
+);
+}
+
+return (
+<div className="absolute inset-0 z-40 flex flex-col" style={{ backgroundColor: C.cream }}>
+<div className="flex items-center gap-3 px-4 py-4 shrink-0" style={{ backgroundColor: C.clay, color: C.cream }}>
+<button onClick={onClose}><ChevronRight size={22} /></button>
+<div style={{ fontFamily: "'Aref Ruqaa', serif" }} className="text-lg flex-1">خريطة المزرعة</div>
+<button onClick={() => setShowEditor(true)} className="text-xs rounded-full px-2.5 py-1.5" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
+✏️ الهيكل
+</button>
+</div>
+
+{/* بطاقة الإحصائيات */}
+<button onClick={() => setShowStats((s) => !s)} className="mx-4 mt-3 rounded-2xl bg-white shadow-sm p-3 text-right shrink-0">
+<div className="flex items-center justify-between">
+<span className="text-xs font-semibold" style={{ color: C.navy }}>وثّقت {documentedCount} من {total} نخلة</span>
+<ChevronLeft size={14} style={{ transform: showStats ? "rotate(-90deg)" : "none", transition: "transform .2s" }} />
+</div>
+<div className="w-full h-1.5 rounded-full mt-2" style={{ backgroundColor: C.creamDeep }}>
+<div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (documentedCount / total) * 100)}%`, backgroundColor: C.gold }} />
+</div>
+{showStats && (
+<div className="flex flex-wrap gap-1.5 mt-3">
+{varietyCounts.length === 0 && <span className="text-[11px] text-gray-400">ما فيه أصناف موثّقة بعد</span>}
+{varietyCounts.map(([name, count]) => (
+<span key={name} className="text-[11px] rounded-full px-2.5 py-1" style={{ backgroundColor: C.creamDeep, color: C.olive }}>
+{name}: {count}
+</span>
+))}
+</div>
+)}
+</button>
+
+{/* تبويب المربعات */}
+<div className="flex gap-2 px-4 py-3 shrink-0 flex-wrap">
+{layout.map((b, i) => (
+<button
+key={b.id}
+onClick={() => setBlockIdx(i)}
+className="rounded-xl py-2 px-3 text-xs font-medium"
+style={{ backgroundColor: blockIdx === i ? C.navy : "#fff", color: blockIdx === i ? C.cream : C.navy, border: blockIdx === i ? "none" : "1px solid #eee2c8" }}
+>
+{b.name}
+<div className="text-[10px] opacity-70 mt-0.5">{b.note} · {blockTotal(b)}</div>
+</button>
+))}
+</div>
+
+{/* دليل الألوان */}
+<div className="flex items-center gap-3 px-4 py-2 text-[10px] shrink-0" style={{ color: "#8a8272" }}>
+<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: HEALTH_STYLES.healthy.dot }} /> سليمة</span>
+<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: HEALTH_STYLES.stressed.dot }} /> متضررة</span>
+<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: HEALTH_STYLES.dead.dot }} /> يابسة</span>
+<span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block border" style={{ borderColor: "#cfc4a6" }} /> فاضية</span>
+</div>
+
+{/* الشبكة — الأجزاء جنب بعض وبينها أنبوب الري */}
+<div className="flex-1 overflow-auto px-3 pb-6">
+{block ? (
+<div className="rounded-2xl bg-white shadow-sm p-3 flex gap-2 items-start">
+{block.parts.map((part, partIdx) => (
+<React.Fragment key={part.id}>
+{partIdx > 0 && (
+<div className="w-1 rounded-full self-stretch shrink-0" style={{ backgroundColor: "#4A6FA5", opacity: 0.5 }} title="أنبوب الري الرئيسي" />
+)}
+{renderPart(part, partIdx)}
+</React.Fragment>
+))}
+</div>
+) : (
+<div className="text-sm text-gray-400 text-center py-10">ما فيه مربعات بعد</div>
+)}
+</div>
+
+{sheet && (
+<SlotSheet
+address={slotAddress(blockIdx, sheet.partIdx, sheet.rowIdx, sheet.posIdx)}
+plant={sheet.plant}
+onClose={() => setSheet(null)}
+onAdd={() => {
+onAddAt({ b: blockIdx, p: sheet.partIdx, r: sheet.rowIdx, s: sheet.posIdx });
+setSheet(null);
+}}
+onOpenProfile={() => {
+onOpenProfile(sheet.plant.id);
+setSheet(null);
+}}
+/>
+)}
+
+{showEditor && (
+<FarmStructureEditor
+layout={layout}
+onClose={() => setShowEditor(false)}
+onAddBlock={onAddBlock}
+onAddRow={onAddRow}
+/>
+)}
+</div>
+);
+}
+
+/* ============================================================
+إدارة هيكل المزرعة — إضافة مربع / صف جديد
+============================================================ */
+function FarmStructureEditor({ layout, onClose, onAddBlock, onAddRow }) {
+const [tab, setTab] = useState("rows"); // rows | newBlock
+const [selBlock, setSelBlock] = useState(0);
+const [selPart, setSelPart] = useState(0);
+const [rowCount, setRowCount] = useState("5");
+
+const [newName, setNewName] = useState("");
+const [newNote, setNewNote] = useState("");
+const [partsConfig, setPartsConfig] = useState(["hex", "hex"]); // نمط كل جزء بالترتيب
+
+return (
+<div className="absolute inset-0 z-50 flex flex-col" style={{ backgroundColor: C.cream }}>
+<style>{`.modal-input{ width:100%; border-radius:12px; padding:10px 14px; font-size:14px; border:1px solid #e5ddc9; background:#fff; outline:none; }`}</style>
+<div className="flex items-center gap-3 px-4 py-4 shrink-0" style={{ backgroundColor: C.navy, color: C.cream }}>
+<button onClick={onClose}><ChevronRight size={22} /></button>
+<div style={{ fontFamily: "'Aref Ruqaa', serif" }} className="text-lg">إدارة هيكل المزرعة</div>
+</div>
+
+<div className="flex gap-2 px-4 py-3 shrink-0">
+<button onClick={() => setTab("rows")} className="flex-1 rounded-xl py-2 text-xs font-medium" style={{ backgroundColor: tab === "rows" ? C.navy : "#fff", color: tab === "rows" ? C.cream : C.navy, border: tab === "rows" ? "none" : "1px solid #eee2c8" }}>➕ أضف صف</button>
+<button onClick={() => setTab("newBlock")} className="flex-1 rounded-xl py-2 text-xs font-medium" style={{ backgroundColor: tab === "newBlock" ? C.navy : "#fff", color: tab === "newBlock" ? C.cream : C.navy, border: tab === "newBlock" ? "none" : "1px solid #eee2c8" }}>➕ مربع جديد</button>
+</div>
+
+<div className="flex-1 overflow-y-auto px-4 pb-6 space-y-3">
+{tab === "rows" && (
+<div className="rounded-2xl bg-white shadow-sm p-4 space-y-3">
+<Field label="المربع">
+<select value={selBlock} onChange={(e) => { setSelBlock(Number(e.target.value)); setSelPart(0); }} className="modal-input">
+{layout.map((b, i) => <option key={b.id} value={i}>{b.name}</option>)}
+</select>
+</Field>
+<Field label="الجزء">
+<select value={selPart} onChange={(e) => setSelPart(Number(e.target.value))} className="modal-input">
+{layout[selBlock]?.parts.map((p, i) => <option key={p.id} value={i}>{p.name} ({p.pattern === "hex" ? "سداسي" : "رباعي"})</option>)}
+</select>
+</Field>
+<Field label="عدد النخيل بالصف الجديد">
+<input type="number" min="1" value={rowCount} onChange={(e) => setRowCount(e.target.value)} className="modal-input" />
+</Field>
+<div className="text-[11px] text-gray-400">
+الصف الجديد سيُضاف كآخر صف (أقصى الجنوب) — يحتوي حالياً {layout[selBlock]?.parts[selPart]?.rowCounts.length || 0} صف
+</div>
+<button
+onClick={() => { const c = Number(rowCount); if (c > 0) onAddRow(selBlock, selPart, c); }}
+className="w-full rounded-xl py-3 text-white font-medium"
+style={{ backgroundColor: C.olive }}
+>
+أضف الصف
+</button>
+</div>
+)}
+
+{tab === "newBlock" && (
+<div className="rounded-2xl bg-white shadow-sm p-4 space-y-3">
+<Field label="اسم المربع"><input value={newName} onChange={(e) => setNewName(e.target.value)} className="modal-input" placeholder="المربع الرابع" /></Field>
+<Field label="ملاحظة الموقع"><input value={newNote} onChange={(e) => setNewNote(e.target.value)} className="modal-input" placeholder="مثلاً: شرق" /></Field>
+
+<div className="text-xs text-gray-400 mb-1">أجزاء المربع ({partsConfig.length})</div>
+{partsConfig.map((pattern, i) => (
+<div key={i} className="flex items-center gap-2">
+<span className="text-xs text-gray-400 w-16 shrink-0">الجزء {i + 1}</span>
+<select
+value={pattern}
+onChange={(e) => setPartsConfig((prev) => prev.map((p, pi) => (pi === i ? e.target.value : p)))}
+className="modal-input"
+>
+<option value="hex">سداسي (خلية نحل)</option>
+<option value="square">رباعي (صفوف منتظمة)</option>
+</select>
+{partsConfig.length > 1 && (
+<button
+onClick={() => setPartsConfig((prev) => prev.filter((_, pi) => pi !== i))}
+className="shrink-0 text-red-400 px-1"
+>
+<X size={16} />
+</button>
+)}
+</div>
+))}
+<button
+onClick={() => setPartsConfig((prev) => [...prev, "hex"])}
+className="w-full rounded-xl py-2 text-xs font-medium"
+style={{ backgroundColor: C.creamDeep, color: C.clay }}
+>
+➕ أضف جزء آخر
+</button>
+
+<div className="text-[11px] text-gray-400">بعد الإنشاء، تقدر تضيف الصفوف من تبويب "أضف صف"</div>
+<button
+onClick={() => { if (newName.trim()) { onAddBlock(newName.trim(), newNote.trim(), partsConfig); setNewName(""); setNewNote(""); setPartsConfig(["hex", "hex"]); setTab("rows"); } }}
+className="w-full rounded-xl py-3 text-white font-medium"
+style={{ backgroundColor: C.clay }}
+>
+أنشئ المربع
+</button>
+</div>
+)}
+</div>
+</div>
+);
+}
+
+function SlotSheet({ address, plant, onClose, onAdd, onOpenProfile }) {
+return (
+<div className="absolute inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: "rgba(28,37,65,0.5)" }} onClick={onClose}>
+<div onClick={(e) => e.stopPropagation()} className="w-full rounded-t-3xl p-5 pb-8" style={{ backgroundColor: C.cream }}>
+<div className="text-xs text-gray-400 mb-1">عنوان الخانة</div>
+<div className="text-lg font-semibold mb-4" style={{ color: C.navy, fontFamily: "'Aref Ruqaa', serif" }}>{address}</div>
+
+{plant ? (
+<div>
+<div className="rounded-2xl bg-white p-4 shadow-sm mb-3">
+<div className="font-medium text-sm" style={{ color: C.navy }}>{plant.name}</div>
+<div className="text-xs text-gray-400 mt-1">
+{plant.type}{plant.variety ? ` · ${plant.variety}` : ""} · {computeAge(plant.plantDate)} يوم · {computeStage(plant.type, computeAge(plant.plantDate))}
+</div>
+<span
+className="inline-block text-xs font-medium rounded-full px-3 py-1 mt-2"
+style={{ backgroundColor: HEALTH_STYLES[plant.health || "healthy"].bg, color: HEALTH_STYLES[plant.health || "healthy"].color }}
+>
+{HEALTH_STYLES[plant.health || "healthy"].label}
+</span>
+</div>
+<button onClick={onOpenProfile} className="w-full rounded-xl py-3 text-white font-medium" style={{ backgroundColor: C.olive }}>
+افتح الملف الكامل
+</button>
+</div>
+) : (
+<div>
+<div className="text-sm text-gray-400 mb-4">خانة فاضية، ما فيها نخلة مسجّلة بعد</div>
+<button onClick={onAdd} className="w-full rounded-xl py-3 text-white font-medium flex items-center justify-center gap-2" style={{ backgroundColor: C.clay }}>
+<Plus size={16} /> أضف نخلة هنا
+</button>
+</div>
+)}
+</div>
+</div>
+);
+}
+
+/* ============================================================
+ملف النخلة — سجل تطور زمني
+============================================================ */
+function PalmProfileScreen({ plant, logs, onClose, onAddCondition, onReplace, onRemove }) {
+const [note, setNote] = useState("");
+const [health, setHealth] = useState(plant?.health || "healthy");
+const [showReplace, setShowReplace] = useState(false);
+const [replaceCategory, setReplaceCategory] = useState("شجرة مثمرة");
+const [replaceVariety, setReplaceVariety] = useState(REPLACEMENT_CATEGORIES["شجرة مثمرة"][0]);
+
+if (!plant) return null;
+const age = computeAge(plant.plantDate);
+const stage = computeStage(plant.type, age);
+const timeline = [...logs].filter((l) => l.type === "تقييم حالة").sort((a, b) => new Date(b.date) - new Date(a.date));
+const address = plant.location ? slotAddress(plant.location.b, plant.location.p, plant.location.r, plant.location.s) : null;
+
+return (
+<div className="absolute inset-0 z-40 flex flex-col" style={{ backgroundColor: C.cream }}>
+<div className="flex items-center gap-3 px-4 py-4 shrink-0" style={{ backgroundColor: C.navy, color: C.cream }}>
+<button onClick={onClose}><ChevronRight size={22} /></button>
+<div>
+<div style={{ fontFamily: "'Aref Ruqaa', serif" }} className="text-lg">{plant.name}</div>
+{address && <div className="text-[11px] opacity-60">{address}</div>}
+</div>
+</div>
+
+<div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+<div className="rounded-2xl bg-white shadow-sm p-4 flex items-center justify-between">
+<div>
+<div className="text-sm font-medium" style={{ color: C.navy }}>
+{plant.type}{plant.variety ? ` · ${plant.variety}` : ""} · {age} يوم
+</div>
+<div className="text-xs text-gray-400 mt-0.5">{stage}</div>
+</div>
+<span
+className="text-xs font-medium rounded-full px-3 py-1"
+style={{ backgroundColor: HEALTH_STYLES[health].bg, color: HEALTH_STYLES[health].color }}
+>
+{HEALTH_STYLES[health].label}
+</span>
+</div>
+
+{/* إضافة تقييم جديد */}
+<div className="rounded-2xl bg-white shadow-sm p-4">
+<div className="text-xs font-medium text-gray-400 mb-2">أضف تقييم حالة اليوم</div>
+<div className="flex gap-2 mb-3">
+{Object.entries(HEALTH_STYLES).map(([key, s]) => (
+<button
+key={key}
+onClick={() => setHealth(key)}
+className="flex-1 text-xs rounded-xl py-2 font-medium"
+style={{ backgroundColor: health === key ? s.color : C.creamDeep, color: health === key ? "#fff" : s.color }}
+>
+{s.label}
+</button>
+))}
+</div>
+<textarea
+value={note}
+onChange={(e) => setNote(e.target.value)}
+placeholder="مثال: متبقي فيها 3 جريد أخضر والباقي ناشف"
+className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+style={{ border: `1px solid ${C.creamDeep}`, minHeight: 70 }}
+/>
+<button
+onClick={() => { if (note.trim()) { onAddCondition(note.trim(), health); setNote(""); } }}
+className="w-full mt-2 rounded-xl py-2.5 text-white text-sm font-medium"
+style={{ backgroundColor: C.olive }}
+>
+احفظ التقييم
+</button>
+</div>
+
+{/* إلغاء واستبدال / إزالة نهائية */}
+<div className="rounded-2xl bg-white shadow-sm p-4">
+{!showReplace ? (
+<div className="flex gap-2">
+<button onClick={() => setShowReplace(true)} className="flex-1 text-xs rounded-xl py-2.5 font-medium" style={{ backgroundColor: C.creamDeep, color: C.clay }}>
+🔄 إلغاء واستبدال
+</button>
+<button onClick={onRemove} className="flex-1 text-xs rounded-xl py-2.5 font-medium" style={{ backgroundColor: "#FBEAE0", color: "#B0402B" }}>
+🗑️ تفريغ الخانة
+</button>
+</div>
+) : (
+<div className="space-y-2">
+<div className="text-xs font-medium text-gray-400">استبدال هذه الخانة بغرسة جديدة</div>
+<select
+value={replaceCategory}
+onChange={(e) => { setReplaceCategory(e.target.value); setReplaceVariety(REPLACEMENT_CATEGORIES[e.target.value][0]); }}
+className="modal-input"
+>
+{Object.keys(REPLACEMENT_CATEGORIES).map((c) => <option key={c}>{c}</option>)}
+</select>
+<select value={replaceVariety} onChange={(e) => setReplaceVariety(e.target.value)} className="modal-input">
+{REPLACEMENT_CATEGORIES[replaceCategory].map((v) => <option key={v}>{v}</option>)}
+</select>
+<style>{`.modal-input{ width:100%; border-radius:12px; padding:10px 14px; font-size:14px; border:1px solid #e5ddc9; background:#fff; outline:none; }`}</style>
+<div className="flex gap-2">
+<button onClick={() => setShowReplace(false)} className="flex-1 text-xs rounded-xl py-2.5" style={{ backgroundColor: C.creamDeep, color: C.navy }}>تراجع</button>
+<button
+onClick={() => { onReplace(replaceCategory, replaceVariety); setShowReplace(false); }}
+className="flex-1 text-xs rounded-xl py-2.5 text-white font-medium"
+style={{ backgroundColor: C.clay }}
+>
+أكّد الاستبدال
+</button>
+</div>
+</div>
+)}
+</div>
+
+{/* الخط الزمني */}
+<div>
+<div className="text-sm font-semibold mb-2 px-1" style={{ color: C.navy }}>الخط الزمني</div>
+{timeline.length === 0 && <div className="text-xs text-gray-400 text-center py-6">ما فيه تقييمات مسجلة بعد</div>}
+<div className="space-y-2">
+{timeline.map((t) => (
+<div key={t.id} className="rounded-2xl bg-white shadow-sm p-3">
+<div className="text-[11px] text-gray-400 mb-1">{new Date(t.date).toLocaleDateString("ar-SA-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })}</div>
+<div className="text-sm" style={{ color: C.navy }}>{t.note}</div>
+</div>
+))}
+</div>
+</div>
+</div>
+</div>
+);
+}
+
+/* ============================================================
+سجل المزرعة
+============================================================ */
+function MyFarm({ plants, logs, farmLayout, onAdd, onOpenPalmSeasons, onOpenFarmMap }) {
+return (
+<div>
+<div className="flex items-center justify-between mb-3">
+<div className="text-lg font-semibold" style={{ color: C.navy, fontFamily: "'Aref Ruqaa', serif" }}>مزرعتك</div>
+<button onClick={onAdd} className="flex items-center gap-1 text-xs font-medium rounded-full px-3 py-2 text-white" style={{ backgroundColor: C.olive }}>
+<Plus size={14} /> نبتة جديدة
+</button>
+</div>
+
+<button
+onClick={onOpenFarmMap}
+className="w-full flex items-center justify-between rounded-2xl p-4 mb-3 shadow-sm"
+style={{ backgroundColor: C.clay, color: C.cream }}
+>
+<div className="flex items-center gap-2">
+<MapPin size={18} style={{ color: C.goldSoft }} />
+<div className="text-right">
+<div className="text-sm font-medium">خريطة المزرعة</div>
+<div className="text-[10px] opacity-75">{farmTotal(farmLayout)} نخلة موزعة على {farmLayout.length} مربعات</div>
+</div>
+</div>
+<ChevronLeft size={16} />
+</button>
+
+<button
+onClick={onOpenPalmSeasons}
+className="w-full flex items-center justify-between rounded-2xl p-4 mb-3 shadow-sm"
+style={{ backgroundColor: C.navy, color: C.cream }}
+>
+<div className="flex items-center gap-2">
+<Calendar size={18} style={{ color: C.gold }} />
+<span className="text-sm font-medium">مواسم غرس النخيل</span>
+</div>
+<ChevronLeft size={16} />
+</button>
+
+<div className="space-y-3">
+{plants.map((p) => {
+const age = computeAge(p.plantDate);
+const stage = computeStage(p.type, age);
+const plantLogs = logs.filter((l) => l.plantId === p.id);
+const totalCost = plantLogs.reduce((s, l) => s + (Number(l.cost) || 0), 0);
+return (
+<div key={p.id} className="rounded-2xl bg-white shadow-sm p-4">
+<div className="flex items-center gap-3">
+<div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: C.creamDeep }}>
+<Trees size={22} style={{ color: C.olive }} />
+</div>
+<div className="flex-1">
+<div className="font-medium text-sm" style={{ color: C.navy }}>{p.name}</div>
+<div className="text-xs text-gray-400 mt-0.5">{p.type} · غُرست قبل {age} يوم</div>
+</div>
+</div>
+<div className="flex items-center justify-between mt-3 text-xs">
+<span className="rounded-full px-2.5 py-1" style={{ backgroundColor: C.creamDeep, color: C.navy }}>{stage}</span>
+<span className="flex items-center gap-1 text-gray-400"><Wallet size={13} /> {totalCost} ر.س</span>
+<span className="flex items-center gap-1 text-gray-400"><NotebookText size={13} /> {plantLogs.length} عملية</span>
+</div>
+</div>
+);
+})}
+</div>
+</div>
+);
+}
+
+/* ============================================================
+دفتر العمليات
+============================================================ */
+function Logbook({ plants, logs, onAdd }) {
+const [filter, setFilter] = useState("الكل");
+const types = ["الكل", "ري", "تسميد", "مكافحة", "غرس", "تقييم حالة"];
+const sorted = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date));
+const filtered = filter === "الكل" ? sorted : sorted.filter((l) => l.type === filter);
+
+return (
+<div>
+<div className="flex items-center justify-between mb-3">
+<div className="text-lg font-semibold" style={{ color: C.navy, fontFamily: "'Aref Ruqaa', serif" }}>دفتر العمليات</div>
+</div>
+<div className="flex gap-2 overflow-x-auto mb-3 pb-1">
+{types.map((t) => (
+<button
+key={t}
+onClick={() => setFilter(t)}
+className="text-xs px-3 py-1.5 rounded-full whitespace-nowrap"
+style={{
+backgroundColor: filter === t ? C.navy : "#fff",
+color: filter === t ? C.cream : C.navy,
+border: `1px solid ${filter === t ? C.navy : "#e5ddc9"}`,
+}}
+>
+{t}
+</button>
+))}
+</div>
+<div className="space-y-2">
+{filtered.length === 0 && <div className="text-sm text-gray-400 text-center py-10">ما فيه عمليات مسجلة بعد</div>}
+{filtered.map((l) => {
+const plant = plants.find((p) => p.id === l.plantId);
+return (
+<div key={l.id} className="rounded-2xl bg-white shadow-sm p-3 flex items-center gap-3">
+<div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: C.creamDeep }}>
+{l.type === "ري" ? <Droplets size={16} style={{ color: C.navy }} /> : l.type === "تسميد" ? <Sprout size={16} style={{ color: C.olive }} /> : <Leaf size={16} style={{ color: C.clay }} />}
+</div>
+<div className="flex-1">
+<div className="text-sm font-medium" style={{ color: C.navy }}>{l.type} — {plant?.name || "غير محدد"}</div>
+<div className="text-[11px] text-gray-400">{new Date(l.date).toLocaleDateString("ar-SA")}{l.note ? ` · ${l.note}` : ""}</div>
+</div>
+{l.cost > 0 && <div className="text-xs text-gray-400">{l.cost} ر.س</div>}
+</div>
+);
+})}
+</div>
+</div>
+);
+}
+
+/* ============================================================
+طبيب النباتات — Claude Vision
+============================================================ */
+function PlantDoctor() {
+const [image, setImage] = useState(null);
+const [loading, setLoading] = useState(false);
+const [result, setResult] = useState(null);
+const [error, setError] = useState(null);
+const fileRef = useRef(null);
+
+function handleFile(e) {
+const file = e.target.files[0];
+if (!file) return;
+const reader = new FileReader();
+reader.onload = () => {
+setImage(reader.result);
+setResult(null);
+setError(null);
+};
+reader.readAsDataURL(file);
+}
+
+async function analyze() {
+if (!image) return;
+setLoading(true);
+setError(null);
+try {
+const base64Data = image.split(",")[1];
+const mediaType = image.substring(image.indexOf(":") + 1, image.indexOf(";"));
+
+const response = await fetch("/api/plant-doctor", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ image: base64Data, mediaType }),
+});
+const data = await response.json();
+if (data.error) {
+setError(data.error);
+return;
+}
+const clean = (data.text || "{}").replace(/```json|```/g, "").trim();
+const parsed = JSON.parse(clean);
+setResult(parsed);
+} catch (e) {
+setError("ما قدرنا نحلل الصورة الحين، جرب مرة ثانية");
+} finally {
+setLoading(false);
+}
+}
+
+return (
+<div>
+<div className="text-lg font-semibold mb-1" style={{ color: C.navy, fontFamily: "'Aref Ruqaa', serif" }}>طبيب النباتات</div>
+<p className="text-xs text-gray-400 mb-4">صوّر النبتة المريضة وخلّي الذكاء الاصطناعي يشخّص لك المشكلة</p>
+
+<div
+onClick={() => fileRef.current?.click()}
+className="rounded-3xl border-2 border-dashed flex flex-col items-center justify-center py-10 cursor-pointer"
+style={{ borderColor: C.gold, backgroundColor: "#fff" }}
+>
+{image ? (
+<img src={image} alt="النبتة" className="max-h-48 rounded-2xl object-cover" />
+) : (
+<>
+<Camera size={30} style={{ color: C.gold }} />
+<span className="text-sm mt-2 text-gray-400">اضغط لرفع أو تصوير النبتة</span>
+</>
+)}
+</div>
+<input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+
+{image && (
+<button
+onClick={analyze}
+disabled={loading}
+className="w-full mt-4 rounded-2xl py-3 font-medium text-white flex items-center justify-center gap-2"
+style={{ backgroundColor: C.olive, opacity: loading ? 0.7 : 1 }}
+>
+<Sparkles size={18} /> {loading ? "يحلل الصورة..." : "حلّلها بالذكاء الاصطناعي"}
+</button>
+)}
+
+{error && <div className="text-sm text-red-500 mt-3 text-center">{error}</div>}
+
+{result && (
+<div className="rounded-3xl bg-white shadow-md p-5 mt-4 space-y-3">
+<div className="flex items-center justify-between">
+<div className="font-semibold" style={{ color: C.navy }}>{result.problem}</div>
+{typeof result.confidence === "number" && (
+<span className="text-xs rounded-full px-2.5 py-1" style={{ backgroundColor: C.creamDeep, color: C.clay }}>
+ثقة {result.confidence}%
+</span>
+)}
+</div>
+{result.symptoms?.length > 0 && (
+<div>
+<div className="text-xs font-medium text-gray-400 mb-1">الأعراض</div>
+<ul className="text-sm space-y-1" style={{ color: C.navy }}>
+{result.symptoms.map((s, i) => (
+<li key={i}>• {s}</li>
+))}
+</ul>
+</div>
+)}
+{result.treatment && (
+<div>
+<div className="text-xs font-medium text-gray-400 mb-1">خطة العلاج</div>
+<p className="text-sm" style={{ color: C.navy }}>{result.treatment}</p>
+</div>
+)}
+<div className="text-[11px] text-gray-400 pt-2 border-t">
+هذا تحليل استرشادي بالذكاء الاصطناعي، وما يغني عن استشارة مختص زراعي عند الشك
+</div>
+</div>
+)}
+</div>
+);
+}
+
+/* ============================================================
+المزيد: الإعدادات + المقارنة
+============================================================ */
+function MoreScreen({ kunya, setKunya, plants, logs }) {
+const [editKunya, setEditKunya] = useState(kunya);
+
+function exportBackup() {
+const data = JSON.stringify({ plants, logs, kunya }, null, 2);
+const blob = new Blob([data], { type: "application/json" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = "mawasem-backup.json";
+a.click();
+}
+
+return (
+<div className="space-y-5">
+<div>
+<div className="text-lg font-semibold mb-3" style={{ color: C.navy, fontFamily: "'Aref Ruqaa', serif" }}>الإعدادات</div>
+<div className="rounded-2xl bg-white shadow-sm p-4">
+<div className="text-xs text-gray-400 mb-2">كنيتك</div>
+<div className="flex gap-2">
+<input
+value={editKunya}
+onChange={(e) => setEditKunya(e.target.value)}
+className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+style={{ border: `1px solid ${C.creamDeep}` }}
+placeholder="أبو راكان"
+/>
+<button onClick={() => setKunya(editKunya)} className="rounded-xl px-4 text-sm text-white" style={{ backgroundColor: C.navy }}>
+حفظ
+</button>
+</div>
+</div>
+<button onClick={exportBackup} className="w-full mt-3 rounded-2xl bg-white shadow-sm p-4 flex items-center justify-between">
+<span className="text-sm font-medium" style={{ color: C.navy }}>تنزيل نسخة احتياطية</span>
+<span className="text-xs text-gray-400">JSON</span>
+</button>
+<div className="text-[11px] text-gray-400 mt-2 px-1">
+بالنسخة المنشورة على الخادم، بياناتك بتنحفظ تلقائياً بالسحابة برضو — ما تحتاج تصدّرها يدوي كل مرة
+</div>
+</div>
+
+<div>
+<div className="text-lg font-semibold mb-3" style={{ color: C.navy, fontFamily: "'Aref Ruqaa', serif" }}>ليش مواسم؟</div>
+<div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+<ComparisonRow label="لغة عربية كاملة" mawasem={true} others={false} />
+<ComparisonRow label="التقويم الفلكي (الأنواء)" mawasem={true} others={false} />
+<ComparisonRow label="ربط الطقس بالنوء والتوصية" mawasem={true} others={false} />
+<ComparisonRow label="تشخيص نباتات بالذكاء الاصطناعي" mawasem={true} others={true} />
+<ComparisonRow label="تذكيرات مبنية على مرحلة نمو النبتة" mawasem={true} others={false} last />
+</div>
+</div>
+</div>
+);
+}
+
+function ComparisonRow({ label, mawasem, others, last }) {
+return (
+<div className={`flex items-center justify-between px-4 py-3 ${!last ? "border-b" : ""}`} style={{ borderColor: "#F0EBDD" }}>
+<span className="text-sm flex-1" style={{ color: C.navy }}>{label}</span>
+<span className="w-16 text-center text-xs font-medium" style={{ color: C.olive }}>{mawasem ? "✓ مواسم" : "—"}</span>
+<span className="w-16 text-center text-xs text-gray-300">{others ? "✓" : "✗"}</span>
+</div>
+);
+}
+
+/* ============================================================
+نوافذ الإضافة
+============================================================ */
+function AddPlantModal({ onClose, onSave, initialLocation }) {
+const defaultName = initialLocation
+? `نخلة ${slotAddress(initialLocation.b, initialLocation.p, initialLocation.r, initialLocation.s)}`
+: "";
+const [name, setName] = useState(defaultName);
+const [type, setType] = useState("نخلة");
+const [variety, setVariety] = useState(PALM_VARIETIES[0]);
+const [customVariety, setCustomVariety] = useState("");
+const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+
+const isPalm = type === "نخلة";
+const altList = REPLACEMENT_CATEGORIES[type];
+
+return (
+<Modal onClose={onClose} title="نبتة جديدة">
+{initialLocation && (
+<div className="text-xs rounded-xl px-3 py-2 mb-3" style={{ backgroundColor: C.creamDeep, color: C.clay }}>
+📍 الموقع: {slotAddress(initialLocation.b, initialLocation.p, initialLocation.r, initialLocation.s)}
+</div>
+)}
+<Field label="اسم النبتة"><input value={name} onChange={(e) => setName(e.target.value)} className="modal-input" placeholder="نخلة الفناء الشرقي" /></Field>
+<Field label="النوع">
+<select value={type} onChange={(e) => setType(e.target.value)} className="modal-input">
+<option>نخلة</option>
+<option>شجرة مثمرة</option>
+<option>شجرة زينة</option>
+<option>حمضيات</option>
+<option>خضروات</option>
+<option>أخرى</option>
+</select>
+</Field>
+
+{isPalm && (
+<Field label="صنف النخلة">
+<select value={variety} onChange={(e) => setVariety(e.target.value)} className="modal-input">
+{PALM_VARIETIES.map((v) => <option key={v}>{v}</option>)}
+<option value="أخرى">أخرى (اكتبها)</option>
+</select>
+{variety === "أخرى" && (
+<input value={customVariety} onChange={(e) => setCustomVariety(e.target.value)} className="modal-input mt-2" placeholder="اكتب اسم الصنف" />
+)}
+</Field>
+)}
+
+{altList && (
+<Field label="اسم النوع">
+<select value={variety} onChange={(e) => setVariety(e.target.value)} className="modal-input">
+{altList.map((v) => <option key={v}>{v}</option>)}
+<option value="أخرى">أخرى (اكتبها)</option>
+</select>
+{variety === "أخرى" && (
+<input value={customVariety} onChange={(e) => setCustomVariety(e.target.value)} className="modal-input mt-2" placeholder="اكتب اسم النوع" />
+)}
+</Field>
+)}
+
+<Field label="تاريخ الغرس"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="modal-input" /></Field>
+<button
+onClick={() => {
+if (!name) return;
+const finalVariety = (isPalm || altList) ? (variety === "أخرى" ? customVariety : variety) : "";
+onSave({ name, type, variety: finalVariety, plantDate: new Date(date).toISOString(), photo: null, location: initialLocation || null });
+}}
+className="w-full mt-2 rounded-xl py-3 text-white font-medium"
+style={{ backgroundColor: C.olive }}
+>
+أضف النبتة
+</button>
+</Modal>
+);
+}
+
+function AddLogModal({ plants, onClose, onSave }) {
+const [plantId, setPlantId] = useState(plants[0]?.id || "");
+const [type, setType] = useState("ري");
+const [cost, setCost] = useState("");
+const [note, setNote] = useState("");
+
+return (
+<Modal onClose={onClose} title="تسجيل عملية">
+<Field label="النبتة">
+<select value={plantId} onChange={(e) => setPlantId(Number(e.target.value))} className="modal-input">
+{plants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+</select>
+</Field>
+<Field label="نوع العملية">
+<select value={type} onChange={(e) => setType(e.target.value)} className="modal-input">
+<option>ري</option>
+<option>تسميد</option>
+<option>مكافحة</option>
+<option>غرس</option>
+<option>تقييم حالة</option>
+</select>
+</Field>
+<Field label="التكلفة (اختياري)"><input type="number" value={cost} onChange={(e) => setCost(e.target.value)} className="modal-input" placeholder="0" /></Field>
+<Field label="ملاحظة (اختياري)"><input value={note} onChange={(e) => setNote(e.target.value)} className="modal-input" placeholder="نوع السماد مثلاً" /></Field>
+<button
+onClick={() => onSave({ plantId, type, cost: Number(cost) || 0, note, date: new Date().toISOString() })}
+className="w-full mt-2 rounded-xl py-3 text-white font-medium"
+style={{ backgroundColor: C.clay }}
+>
+سجّل العملية
+</button>
+</Modal>
+);
+}
+
+function Field({ label, children }) {
+return (
+<div className="mb-3">
+<div className="text-xs text-gray-400 mb-1">{label}</div>
+{children}
+</div>
+);
+}
+
+function Modal({ title, onClose, children }) {
+return (
+<div className="absolute inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: "rgba(28,37,65,0.5)" }} onClick={onClose}>
+<div
+onClick={(e) => e.stopPropagation()}
+className="w-full rounded-t-3xl p-5 pb-8"
+style={{ backgroundColor: C.cream, maxHeight: "85%", overflowY: "auto" }}
+>
+<div className="flex items-center justify-between mb-4">
+<div className="font-semibold" style={{ color: C.navy, fontFamily: "'Aref Ruqaa', serif" }}>{title}</div>
+<button onClick={onClose}><X size={20} style={{ color: C.navy }} /></button>
+</div>
+<style>{`.modal-input{ width:100%; border-radius:12px; padding:10px 14px; font-size:14px; border:1px solid #e5ddc9; background:#fff; outline:none; }`}</style>
+{children}
+</div>
+</div>
+);
+}
+
+/* ============================================================
+شريط التنقل السفلي
+============================================================ */
+function BottomNav({ tab, setTab }) {
+const items = [
+{ id: "home", label: "الرئيسية", icon: HomeIcon },
+{ id: "farm", label: "مزرعتي", icon: Trees },
+{ id: "logbook", label: "الدفتر", icon: NotebookText },
+{ id: "doctor", label: "الطبيب", icon: Stethoscope },
+{ id: "more", label: "المزيد", icon: Settings },
+];
+return (
+<div className="w-full bg-white border-t flex items-center justify-around py-2" style={{ borderColor: "#F0EBDD" }}>
+{items.map((it) => {
+const Icon = it.icon;
+const active = tab === it.id;
+return (
+<button key={it.id} onClick={() => setTab(it.id)} className="flex flex-col items-center gap-1 px-2 py-1">
+<Icon size={20} style={{ color: active ? C.olive : "#B8AF9C" }} />
+<span className="text-[10px]" style={{ color: active ? C.olive : "#B8AF9C" }}>{it.label}</span>
+</button>
+);
+})}
+</div>
+);
+}
